@@ -26,13 +26,14 @@ fn main() {
         println!("Is word in list? (enter yes or no)");
         let mut ans = String::new();
         stdin().read_line(&mut ans);
-        if ans != "yes\n" {
-            continue;
+        if ans == "yes\n" {
+            let restrictions = get_restrictions(word);
+            words = update_words_from_restrictions(words, &restrictions);
+            println!();
+        } else {
+            let word_to_delete = word.clone();
+            words.retain(|x| *x != *word_to_delete);
         }
-
-        let restrictions = get_restrictions(word);
-        words = update_words_from_restrictions(words, &restrictions);
-        println!();
     }
 
     if let Some(ans) = words.get(0) {
