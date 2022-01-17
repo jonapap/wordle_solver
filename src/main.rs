@@ -81,9 +81,9 @@ fn get_restrictions(word: &str) -> Vec<Restrictions> {
             let input = i.unwrap();
             let position = input.parse::<usize>();
             if let Ok(p) = position {
-                if !(0..=WORD_LENGTH).contains(&p) {
+                if !(1..=WORD_LENGTH).contains(&p) {
                     println!(
-                        "Please make sure the number is between 0 and {}",
+                        "Please make sure the number is between 1 and {} (inclusive)",
                         WORD_LENGTH
                     );
                 } else {
