@@ -56,6 +56,69 @@ fn main() {
     }
 }
 
+//noinspection DuplicatedCode
+fn get_restrictions_from_guess(answer: &str, guess: &str) -> Vec<Restrictions> {
+    assert_eq!(answer.len(), guess.len());
+
+    let mut added_chars = Vec::new();
+    let mut yellow_pos = Vec::new();
+    let mut green_pos = Vec::new();
+
+    for (pos, char) in guess.chars().enumerate() {
+        if answer.chars().nth(pos).unwrap() == char {
+            green_pos.push(pos);
+            added_chars.push(char);
+        }
+    }
+    for (pos, char) in guess.chars().enumerate() {
+        if answer.chars().contains(&char)
+            && !green_pos.contains(&pos)
+            && added_chars.iter().filter(|x| **x == char).count()
+                < answer.chars().filter(|x| *x == char).count()
+        {
+            yellow_pos.push(pos);
+            added_chars.push(char);
+        }
+    }
+
+    convert_pos_to_restrictions(guess, green_pos, yellow_pos)
+}
+
+#[test]
+fn run_on_all_words() {
+    let word_list = get_all_5_words();
+
+    let tries: Vec<u32> = word_list
+        .iter()
+        .map(|answer| {
+            let mut rand = StdRng::seed_from_u64(42);
+            let mut words = word_list.clone();
+
+            let mut guesses = 0;
+            while words.len() > 1 {
+                let guess = words.choose(&mut rand).unwrap();
+
+                let restrictions = get_restrictions_from_guess(answer, guess);
+                words = update_words_from_restrictions(words, &restrictions);
+
+                guesses += 1;
+            }
+
+            words.get(0).expect("Word does not exist in the list?");
+
+            guesses
+        })
+        .collect();
+
+    println!("Max: {}", tries.iter().max().unwrap());
+    println!("Low: {}", tries.iter().min().unwrap());
+    println!(
+        "Average: {}",
+        tries.iter().sum::<u32>() / tries.len() as u32
+    );
+    println!("Above 5: {}", tries.iter().filter(|x| **x > 5).count());
+}
+
 /// Request the user to get the restrictions
 fn update_words_from_restrictions(
     words: Vec<String>,
