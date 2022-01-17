@@ -2,12 +2,12 @@ use itertools::Itertools;
 use rand::prelude::SliceRandom;
 use rand::rngs::StdRng;
 use rand::SeedableRng;
-use std::fs::File;
 use std::io;
-use std::io::{stdin, BufRead, BufReader};
+use std::io::{stdin, BufRead};
 use std::ops::RangeInclusive;
 
 const WORD_LENGTH: usize = 5;
+static WORD_LIST: &'static str = include_str!("../words.txt");
 
 /// Represents the current restrictions imposed on the word. This can be used to filter down the
 /// word list until the desired word is found.
@@ -45,7 +45,7 @@ fn main() {
             println!();
         } else {
             let word_to_delete = word.clone();
-            words.retain(|x| *x != *word_to_delete);
+            words.retain(|x| **x != *word_to_delete);
         }
     }
 
@@ -120,10 +120,10 @@ fn run_on_all_words() {
 }
 
 /// Request the user to get the restrictions
-fn update_words_from_restrictions(
-    words: Vec<String>,
-    restrictions: &Vec<Restrictions>,
-) -> Vec<String> {
+fn update_words_from_restrictions<'a, 'b>(
+    words: Vec<&'a str>,
+    restrictions: &'b Vec<Restrictions>,
+) -> Vec<&'a str> {
     words
         .into_iter()
         .filter(|word| {
@@ -241,14 +241,14 @@ fn convert_pos_to_restrictions(
 }
 
 /// Reads from the file './words.txt', and returns all 5 letter words of the english alphabet in lower case.
-fn get_all_5_words() -> Vec<String> {
-    let file = File::open("words.txt")
-        .expect("Could not open file. Please make sure the file 'words.txt' exists in the current directory");
-    let reader = BufReader::new(file);
+fn get_all_5_words() -> Vec<&'static str> {
+    // let file = File::open("words.txt")
+    //     .expect("Could not open file. Please make sure the file 'words.txt' exists in the current directory");
+    // let reader = BufReader::new(WORD_LIST);
 
-    reader
+    WORD_LIST
         .lines()
-        .map(|l| l.expect("Could not parse line").to_lowercase())
+        // .map(|l| l.expect("Could not parse line").to_lowercase())
         .filter(|w| w.len() == WORD_LENGTH.try_into().unwrap())
         .collect()
 }
