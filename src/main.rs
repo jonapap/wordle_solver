@@ -1,7 +1,7 @@
 use itertools::Itertools;
 use rand::prelude::SliceRandom;
 use rand::rngs::StdRng;
-use rand::{thread_rng, SeedableRng};
+use rand::SeedableRng;
 use std::fs::File;
 use std::io;
 use std::io::{stdin, BufRead, BufReader};
@@ -9,9 +9,14 @@ use std::ops::RangeInclusive;
 
 const WORD_LENGTH: usize = 5;
 
+/// Represents the current restrictions imposed on the word. This can be used to filter down the
+/// word list until the desired word is found.
 enum Restrictions {
+    /// Character MUST be at a position
     AtPosition(char, usize),
+    /// Character MUST NOT be at a position
     NotAtPosition(char, usize),
+    /// The number of occurrences of a character must be within the range
     Count(char, RangeInclusive<usize>),
 }
 
@@ -27,11 +32,15 @@ fn main() {
         }
         let word = words.choose(&mut rand).unwrap();
         println!("Guess: {}", word);
+
         println!("Is word in list? (enter yes or no)");
         let mut ans = String::new();
-        stdin().read_line(&mut ans);
+        stdin()
+            .read_line(&mut ans)
+            .expect("Could not read from stdin!");
+
         if ans == "yes\n" {
-            let restrictions = get_restrictions(word);
+            let restrictions = get_restrictions_from_user(word);
             words = update_words_from_restrictions(words, &restrictions);
             println!();
         } else {
@@ -47,6 +56,7 @@ fn main() {
     }
 }
 
+/// Request the user to get the restrictions
 fn update_words_from_restrictions(
     words: Vec<String>,
     restrictions: &Vec<Restrictions>,
@@ -80,7 +90,7 @@ fn update_words_from_restrictions(
         .collect()
 }
 
-fn get_restrictions(word: &str) -> Vec<Restrictions> {
+fn get_restrictions_from_user(word: &str) -> Vec<Restrictions> {
     let request_from_user = |list: &mut Vec<usize>| {
         for i in io::stdin().lock().lines() {
             let input = i.unwrap();
@@ -104,14 +114,24 @@ fn get_restrictions(word: &str) -> Vec<Restrictions> {
     println!("Enter the position of any green characters (enter 'n' when done):");
     let mut green_pos = Vec::new();
     request_from_user(&mut green_pos);
+
+    println!("Enter the position of any yellow characters (enter 'n' when done):");
+    let mut yellow_pos = Vec::new();
+    request_from_user(&mut yellow_pos);
+
+    convert_pos_to_restrictions(word, green_pos, yellow_pos)
+}
+
+fn convert_pos_to_restrictions(
+    word: &str,
+    green_pos: Vec<usize>,
+    yellow_pos: Vec<usize>,
+) -> Vec<Restrictions> {
     let green_chars: Vec<_> = green_pos
         .iter()
         .map(|i| word.chars().nth(*i).unwrap())
         .collect();
 
-    println!("Enter the position of any yellow characters (enter 'n' when done):");
-    let mut yellow_pos = Vec::new();
-    request_from_user(&mut yellow_pos);
     let yellow_chars: Vec<_> = yellow_pos
         .iter()
         .map(|i| word.chars().nth(*i).unwrap())
@@ -157,7 +177,7 @@ fn get_restrictions(word: &str) -> Vec<Restrictions> {
     restrictions
 }
 
-/// Reading from the file './words.txt', return all 5 letter words of the english alphabet in lower case
+/// Reads from the file './words.txt', and returns all 5 letter words of the english alphabet in lower case.
 fn get_all_5_words() -> Vec<String> {
     let file = File::open("words.txt")
         .expect("Could not open file. Please make sure the file 'words.txt' exists in the current directory");
