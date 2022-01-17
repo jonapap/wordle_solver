@@ -119,7 +119,7 @@ fn run_on_all_words() {
     println!("Above 5: {}", tries.iter().filter(|x| **x > 5).count());
 }
 
-/// Request the user to get the restrictions
+/// Filter the list of words based on the given restrictions
 fn update_words_from_restrictions<'a, 'b>(
     words: Vec<&'a str>,
     restrictions: &'b Vec<Restrictions>,
@@ -153,6 +153,7 @@ fn update_words_from_restrictions<'a, 'b>(
         .collect()
 }
 
+/// Ask the user to get the restrictions
 fn get_restrictions_from_user(word: &str) -> Vec<Restrictions> {
     let request_from_user = |list: &mut Vec<usize>| {
         for i in io::stdin().lock().lines() {
