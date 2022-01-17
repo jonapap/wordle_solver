@@ -20,7 +20,11 @@ fn main() {
     let mut words = get_all_5_words();
 
     while words.len() > 1 {
-        println!("Remaining words: {}", words.len());
+        if words.len() > 10 {
+            println!("Remaining words: {}", words.len());
+        } else {
+            println!("Remaining words: {} ({})", words.len(), words.join(", "));
+        }
         let word = words.choose(&mut rand).unwrap();
         println!("Guess: {}", word);
         println!("Is word in list? (enter yes or no)");
