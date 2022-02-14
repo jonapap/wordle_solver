@@ -1,10 +1,8 @@
-use itertools::Itertools;
-use rand::prelude::SliceRandom;
-use rand::rngs::StdRng;
-use rand::SeedableRng;
 use std::io;
 use std::io::{stdin, BufRead};
 use std::ops::RangeInclusive;
+
+use itertools::Itertools;
 
 const WORD_LENGTH: usize = 5;
 static WORD_LIST: &'static str = include_str!("../words.txt");
@@ -20,18 +18,27 @@ enum Restrictions {
     Count(char, RangeInclusive<usize>),
 }
 
+type WordInfo<'a> = (f64, &'a str);
+
 fn main() {
-    let mut rand = StdRng::seed_from_u64(42);
-    let mut words = get_all_5_words();
+    let words = get_all_5_words();
+    let mut words = rank_words(words);
 
     while words.len() > 1 {
         if words.len() > 10 {
             println!("Remaining words: {}", words.len());
         } else {
-            println!("Remaining words: {} ({})", words.len(), words.join(", "));
+            println!(
+                "Remaining words: {} ({})",
+                words.len(),
+                words.iter().map(|w| w.1).join(", ")
+            );
         }
-        let word = words.choose(&mut rand).unwrap();
-        println!("Guess: {}", word);
+        let word = words
+            .iter()
+            .max_by(|a, b| a.0.partial_cmp(&b.0).unwrap())
+            .unwrap();
+        println!("Guess: {} ({})", word.1, word.0);
 
         println!("Is word in list? (enter yes or no)");
         let mut ans = String::new();
@@ -40,24 +47,61 @@ fn main() {
             .expect("Could not read from stdin!");
 
         if ans == "yes\n" {
-            let restrictions = get_restrictions_from_user(word);
+            let restrictions = get_restrictions_from_user(word.1);
             words = update_words_from_restrictions(words, &restrictions);
             println!();
         } else {
             let word_to_delete = word.clone();
-            words.retain(|x| **x != *word_to_delete);
+            words.retain(|x| *x != word_to_delete);
         }
     }
 
     if let Some(ans) = words.get(0) {
-        println!("The answer is {}", ans);
+        println!("The answer is {}", ans.1);
     } else {
         println!("The word is not in our list");
     }
 }
 
-//noinspection DuplicatedCode
-fn get_restrictions_from_guess(answer: &str, guess: &str) -> Vec<Restrictions> {
+fn rank_word(word: &str, words: &Vec<&str>) -> f64 {
+    let length = words.len();
+    words // Iterate through each possible guess
+        .iter()
+        .map(|w2| get_pattern_from_guess(w2, word)) // Get the Wordle pattern corresponding to the guess as a number
+        .counts() // Count the occurrence of each pattern
+        .iter()
+        .map(|(_, count)| (*count as f64) / (length as f64)) // Get the probability of each pattern happening
+        .map(|p| p * f64::log2(p.recip())) // This line and calculate the expected information (entropy) for w1
+        .sum()
+}
+
+fn rank_words(words: Vec<&str>) -> Vec<WordInfo> {
+    let length = words.len();
+    words
+        .iter()
+        .map(|w1| (rank_word(w1, &words), *w1))
+        .collect()
+}
+
+/// Returns a number from the answer and the guess. This number is unique for each Wordle pattern.
+///
+/// The number is more or less calculated by assuming the pattern is in base 3 and converting it
+/// to base 10.
+fn get_pattern_from_guess(answer: &str, guess: &str) -> usize {
+    let (yellow_pos, green_pos) = get_pos_from_guess(answer, guess);
+
+    let mut pattern: usize = 0;
+    for i in yellow_pos {
+        pattern += 2 * 3_usize.pow(i as u32);
+    }
+    for i in green_pos {
+        pattern += 1 * 3_usize.pow(i as u32);
+    }
+
+    pattern
+}
+
+fn get_pos_from_guess(answer: &str, guess: &str) -> (Vec<usize>, Vec<usize>) {
     assert_eq!(answer.len(), guess.len());
 
     let mut added_chars = Vec::new();
@@ -81,24 +125,33 @@ fn get_restrictions_from_guess(answer: &str, guess: &str) -> Vec<Restrictions> {
         }
     }
 
+    (yellow_pos, green_pos)
+}
+
+fn get_restrictions_from_guess(answer: &str, guess: &str) -> Vec<Restrictions> {
+    let (yellow_pos, green_pos) = get_pos_from_guess(answer, guess);
+
     convert_pos_to_restrictions(guess, green_pos, yellow_pos)
 }
 
 #[test]
 fn run_on_all_words() {
     let word_list = get_all_5_words();
+    let word_info = rank_words(word_list.clone());
 
     let tries: Vec<u32> = word_list
         .iter()
         .map(|answer| {
-            let mut rand = StdRng::seed_from_u64(42);
-            let mut words = word_list.clone();
+            let mut words = word_info.clone();
 
             let mut guesses = 0;
             while words.len() > 1 {
-                let guess = words.choose(&mut rand).unwrap();
+                let guess = words
+                    .iter()
+                    .max_by(|a, b| a.0.partial_cmp(&b.0).unwrap())
+                    .unwrap();
 
-                let restrictions = get_restrictions_from_guess(answer, guess);
+                let restrictions = get_restrictions_from_guess(answer, guess.1);
                 words = update_words_from_restrictions(words, &restrictions);
 
                 guesses += 1;
@@ -114,19 +167,19 @@ fn run_on_all_words() {
     println!("Low: {}", tries.iter().min().unwrap());
     println!(
         "Average: {}",
-        tries.iter().sum::<u32>() / tries.len() as u32
+        tries.iter().sum::<u32>() as f64 / tries.len() as f64
     );
     println!("Above 5: {}", tries.iter().filter(|x| **x > 5).count());
 }
 
 /// Filter the list of words based on the given restrictions
 fn update_words_from_restrictions<'a, 'b>(
-    words: Vec<&'a str>,
+    words: Vec<WordInfo<'a>>,
     restrictions: &'b Vec<Restrictions>,
-) -> Vec<&'a str> {
+) -> Vec<WordInfo<'a>> {
     words
         .into_iter()
-        .filter(|word| {
+        .filter(|(_, word)| {
             for r in restrictions {
                 match r {
                     Restrictions::NotAtPosition(char, pos) => {
