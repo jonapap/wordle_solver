@@ -34,12 +34,12 @@ fn main() {
                 words.iter().map(|w| w.1).join(", ")
             );
         }
-        let word = words
+        let guess = words
             .iter()
             .max_by(|a, b| a.0.partial_cmp(&b.0).unwrap())
             .unwrap()
             .clone();
-        println!("Guess: {} (E[Info]={})", word.1, word.0);
+        println!("Guess: {} (E[Info]={})", guess.1, guess.0);
 
         println!("Is word in list? (enter yes or no)");
         let mut ans = String::new();
@@ -48,7 +48,7 @@ fn main() {
             .expect("Could not read from stdin!");
 
         if ans == "yes\n" {
-            let restrictions = get_restrictions_from_user(word.1);
+            let restrictions = get_restrictions_from_user(guess.1);
             let length_before = words.len() as f64;
             words = update_words_from_restrictions(words, &restrictions);
             let length_after = words.len() as f64;
@@ -56,12 +56,11 @@ fn main() {
 
             println!(
                 "\nActual information for {}: {}",
-                word.1, actual_information
+                guess.1, actual_information
             );
             println!();
         } else {
-            let word_to_delete = word.clone();
-            words.retain(|x| *x != word_to_delete);
+            words.retain(|x| *x != guess);
         }
     }
 
@@ -76,16 +75,15 @@ fn rank_word(word: &str, words: &Vec<&str>) -> f64 {
     let length = words.len();
     words // Iterate through each possible guess
         .iter()
-        .map(|w2| get_pattern_from_guess(w2, word)) // Get the Wordle pattern corresponding to the guess as a number
+        .map(|guess| get_pattern_from_guess(guess, word)) // Get the Wordle pattern corresponding to the guess as a number
         .counts() // Count the occurrence of each pattern
         .iter()
         .map(|(_, count)| (*count as f64) / (length as f64)) // Get the probability of each pattern happening
-        .map(|p| p * f64::log2(p.recip())) // This line and calculate the expected information (entropy) for w1
+        .map(|p| p * p.recip().log2()) // This line and the next calculate the expected information (entropy) for w1
         .sum()
 }
 
 fn rank_words(words: Vec<&str>) -> Vec<WordInfo> {
-    let length = words.len();
     words
         .iter()
         .map(|w1| (rank_word(w1, &words), *w1))
