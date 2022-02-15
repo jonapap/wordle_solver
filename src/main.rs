@@ -37,8 +37,9 @@ fn main() {
         let word = words
             .iter()
             .max_by(|a, b| a.0.partial_cmp(&b.0).unwrap())
-            .unwrap();
-        println!("Guess: {} ({})", word.1, word.0);
+            .unwrap()
+            .clone();
+        println!("Guess: {} (E[Info]={})", word.1, word.0);
 
         println!("Is word in list? (enter yes or no)");
         let mut ans = String::new();
@@ -48,7 +49,15 @@ fn main() {
 
         if ans == "yes\n" {
             let restrictions = get_restrictions_from_user(word.1);
+            let length_before = words.len() as f64;
             words = update_words_from_restrictions(words, &restrictions);
+            let length_after = words.len() as f64;
+            let actual_information = (length_after / length_before).recip().log2();
+
+            println!(
+                "\nActual information for {}: {}",
+                word.1, actual_information
+            );
             println!();
         } else {
             let word_to_delete = word.clone();
